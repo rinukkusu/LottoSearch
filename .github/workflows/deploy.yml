@@ -1,4 +1,4 @@
-name: Build & deploy
+﻿name: Build & deploy
 
 on:
   schedule:
@@ -20,11 +20,11 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
-          node-version: 20
+          node-version: 24
 
       - name: Download draws and compile data/draws.js
         run: node scripts/build.mjs
@@ -35,7 +35,7 @@ jobs:
           cp index.html _site/
           cp data/draws.js _site/data/
 
-      - uses: actions/upload-pages-artifact@v3
+      - uses: actions/upload-pages-artifact@v4
         with:
           path: _site
 
