@@ -170,7 +170,6 @@
 
     .btn-red  { background: var(--red);   color: var(--white); }
     .btn-gray { background: var(--gray);  color: var(--white); }
-    .btn-green{ background: var(--green); color: var(--white); }
 
     .btn:hover:not(:disabled) { filter: brightness(1.1); transform: translateY(-1px); }
     .btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
@@ -368,21 +367,14 @@
     <div class="zz-hint" id="zz-hint">Wähle jetzt die Zusatzzahl aus dem Gitter oben (orange)</div>
 
     <div class="btn-row">
-      <button class="btn btn-green" id="search-btn" onclick="doSearch()" disabled>🔍 Prüfen</button>
       <button class="btn btn-gray" onclick="resetAll()">↺ Zurücksetzen</button>
     </div>
   </div>
 
-  <!-- ── LIVE-VORSCHAU ── -->
+  <!-- ── ERGEBNIS (live) ── -->
   <div class="card" id="live-card" style="display:none">
     <h2 id="live-heading">🔎 Live-Vorschau</h2>
     <div id="live-body"></div>
-  </div>
-
-  <!-- ── ERGEBNIS (Prüfen) ── -->
-  <div class="card" id="results-card" style="display:none">
-    <h2>📊 Ergebnis</h2>
-    <div id="results-body"></div>
   </div>
 
 </main>
@@ -451,7 +443,6 @@ function resetAll() {
   document.getElementById('zz-chk').checked = false;
   document.getElementById('zz-hint').style.display = 'none';
   document.getElementById('live-card').style.display = 'none';
-  document.getElementById('results-card').style.display = 'none';
   updateUI();
 }
 
@@ -496,10 +487,6 @@ function updateUI() {
     document.getElementById('zz-hint').style.display = 'none';
   }
 
-  // Search button
-  const canSearch = full && (!pickingZz || zzNum !== null);
-  document.getElementById('search-btn').disabled = !canSearch;
-
   // Live search debounce
   clearTimeout(liveTimer);
   if (sorted.length >= 3) {
@@ -515,6 +502,13 @@ function runLiveSearch(sorted) {
   const card  = document.getElementById('live-card');
   const body  = document.getElementById('live-body');
   const heading = document.getElementById('live-heading');
+  card.style.display = 'block';
+
+  if (sorted.length === 6) {
+    heading.textContent = '📊 Ergebnis';
+    body.innerHTML = renderResults(sorted);
+    return;
+  }
 
   // Find all draws that contain every selected number
   const hits = allDraws.filter(d =>
@@ -546,26 +540,6 @@ function runLiveSearch(sorted) {
         </tbody>
       </table>`;
   }
-
-  card.style.display = 'block';
-}
-
-// ── Search ────────────────────────────────────────────────────────────────────
-
-function doSearch() {
-  const sorted = [...selected].sort((a, b) => a - b);
-  const key = sorted.join(',');
-  const useZz = document.getElementById('zz-chk').checked && zzNum !== null;
-
-  let matches = allDraws.filter(d => d.key === key);
-  if (useZz) matches = matches.filter(d => d.zusatz === zzNum);
-
-  const partials = useZz ? [] : allDraws.filter(d => {
-    if (d.key === key) return false;
-    return sorted.filter(n => d.numbers.includes(n)).length === 5;
-  });
-
-  renderResults(sorted, matches, partials, useZz);
 }
 
 // ── Results ───────────────────────────────────────────────────────────────────
@@ -580,10 +554,16 @@ function drawBalls(draw, highlight) {
     miniball(draw.zusatz, 'zz-num');
 }
 
-function renderResults(sorted, matches, partials, useZz) {
-  const card = document.getElementById('results-card');
-  const body = document.getElementById('results-body');
-  card.style.display = 'block';
+function renderResults(sorted) {
+  const key = sorted.join(',');
+  const useZz = pickingZz && zzNum !== null;
+
+  let matches = allDraws.filter(d => d.key === key);
+  if (useZz) matches = matches.filter(d => d.zusatz === zzNum);
+
+  const partials = useZz ? [] : allDraws.filter(d =>
+    d.key !== key && sorted.filter(n => d.numbers.includes(n)).length === 5
+  ).reverse(); // newest first
 
   let html = '';
 
@@ -637,8 +617,7 @@ function renderResults(sorted, matches, partials, useZz) {
       </table>`;
   }
 
-  body.innerHTML = html;
-  card.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  return html;
 }
 
 // ── Init ──────────────────────────────────────────────────────────────────────
