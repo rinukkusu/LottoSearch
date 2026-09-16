@@ -1,0 +1,652 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LottoSearch – Wurden deine Zahlen je gezogen?</title>
+  <style>
+    :root {
+      --red: #c8102e;
+      --dark: #1a1a2e;
+      --gold: #f5a623;
+      --green: #28a745;
+      --bg: #f0f2f5;
+      --white: #fff;
+      --gray: #6c757d;
+      --border: #dee2e6;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: var(--bg);
+      color: var(--dark);
+      min-height: 100vh;
+    }
+
+    header {
+      background: linear-gradient(135deg, #a00020 0%, #c8102e 50%, #e01035 100%);
+      color: var(--white);
+      padding: 2rem 1rem;
+      text-align: center;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    }
+
+    header h1 {
+      font-size: 2.4rem;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+      margin-bottom: 0.4rem;
+    }
+
+    header p {
+      font-size: 1.05rem;
+      opacity: 0.9;
+    }
+
+    main {
+      max-width: 860px;
+      margin: 0 auto;
+      padding: 1.5rem 1rem 3rem;
+    }
+
+    .card {
+      background: var(--white);
+      border-radius: 14px;
+      padding: 1.5rem;
+      margin-bottom: 1.5rem;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+    }
+
+    .card h2 {
+      font-size: 1.15rem;
+      font-weight: 700;
+      color: var(--red);
+      border-bottom: 2px solid var(--red);
+      padding-bottom: 0.5rem;
+      margin-bottom: 1rem;
+    }
+
+    /* ── Number grid ── */
+    .number-grid {
+      display: grid;
+      grid-template-columns: repeat(9, 1fr);
+      gap: 5px;
+      margin-bottom: 1rem;
+      user-select: none;
+    }
+
+    .ball {
+      aspect-ratio: 1;
+      border-radius: 50%;
+      border: 2px solid var(--border);
+      background: var(--white);
+      cursor: pointer;
+      font-weight: 700;
+      font-size: clamp(0.65rem, 1.5vw, 0.85rem);
+      transition: background 0.12s, border-color 0.12s, transform 0.1s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0;
+    }
+
+    .ball:hover:not(.disabled) {
+      border-color: var(--red);
+      background: #fff0f0;
+      transform: scale(1.1);
+    }
+
+    .ball.selected {
+      background: var(--red);
+      border-color: var(--red);
+      color: var(--white);
+    }
+
+    .ball.zusatz-sel {
+      background: var(--gold);
+      border-color: var(--gold);
+      color: var(--white);
+    }
+
+    .ball.disabled {
+      opacity: 0.3;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    /* ── Selected display ── */
+    .selection-row {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+      align-items: center;
+      min-height: 48px;
+      padding: 0.6rem 0.8rem;
+      background: #f8f9fa;
+      border-radius: 8px;
+      margin-bottom: 1rem;
+      border: 1px solid var(--border);
+    }
+
+    .sel-ball {
+      width: 38px;
+      height: 38px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 0.9rem;
+      color: var(--white);
+      flex-shrink: 0;
+    }
+
+    .sel-ball.main  { background: var(--red); }
+    .sel-ball.zz    { background: var(--gold); }
+    .sel-placeholder { color: #aaa; font-style: italic; font-size: 0.9rem; }
+
+    .zz-sep {
+      font-size: 0.8rem;
+      color: var(--gray);
+      font-weight: 600;
+      margin-left: 4px;
+    }
+
+    /* ── Buttons ── */
+    .btn {
+      padding: 0.65rem 1.3rem;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 0.95rem;
+      font-weight: 700;
+      transition: all 0.15s;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+
+    .btn-red  { background: var(--red);   color: var(--white); }
+    .btn-gray { background: var(--gray);  color: var(--white); }
+    .btn-green{ background: var(--green); color: var(--white); }
+
+    .btn:hover:not(:disabled) { filter: brightness(1.1); transform: translateY(-1px); }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+    .btn-row { display: flex; gap: 0.75rem; flex-wrap: wrap; margin-top: 0.75rem; }
+
+    /* ── Loading ── */
+    .progress-wrap {
+      margin-top: 0.75rem;
+      display: none;
+    }
+
+    .progress-label {
+      font-size: 0.85rem;
+      color: var(--gray);
+      margin-bottom: 4px;
+    }
+
+    .progress-bar {
+      height: 8px;
+      background: #e9ecef;
+      border-radius: 4px;
+      overflow: hidden;
+    }
+
+    .progress-fill {
+      height: 100%;
+      background: var(--red);
+      width: 0;
+      transition: width 0.25s;
+      border-radius: 4px;
+    }
+
+    .data-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      padding: 0.3rem 0.8rem;
+      border-radius: 20px;
+      font-size: 0.85rem;
+      font-weight: 700;
+      background: #d4edda;
+      color: #155724;
+      margin-top: 0.75rem;
+    }
+
+    /* ── Zusatzzahl toggle ── */
+    .zz-toggle-wrap {
+      display: none;
+      align-items: center;
+      gap: 0.5rem;
+      margin-bottom: 0.75rem;
+      font-size: 0.9rem;
+      cursor: pointer;
+    }
+
+    .zz-toggle-wrap input[type=checkbox] {
+      width: 16px; height: 16px; cursor: pointer;
+    }
+
+    .zz-hint {
+      font-size: 0.82rem;
+      color: var(--gold);
+      font-weight: 600;
+      display: none;
+    }
+
+    /* ── Results ── */
+    .result-banner {
+      border-radius: 10px;
+      padding: 1.25rem 1.5rem;
+      text-align: center;
+      margin-bottom: 1rem;
+    }
+
+    .result-banner .emoji { font-size: 2.5rem; display: block; margin-bottom: 0.4rem; }
+    .result-banner.hit  { background: #d4edda; border: 1px solid #28a745; }
+    .result-banner.miss { background: #ffeeba; border: 1px solid #ffc107; }
+
+    .result-banner strong { font-size: 1.2rem; }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.9rem;
+    }
+
+    thead th {
+      background: var(--red);
+      color: var(--white);
+      padding: 0.65rem 0.8rem;
+      text-align: left;
+      font-weight: 600;
+    }
+
+    thead th:first-child { border-radius: 6px 0 0 0; }
+    thead th:last-child  { border-radius: 0 6px 0 0; }
+
+    tbody td {
+      padding: 0.6rem 0.8rem;
+      border-bottom: 1px solid #f0f0f0;
+    }
+
+    tbody tr:hover td { background: #fafafa; }
+
+    .mini-ball {
+      display: inline-flex;
+      width: 26px;
+      height: 26px;
+      border-radius: 50%;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.72rem;
+      font-weight: 700;
+      color: var(--white);
+      margin: 2px;
+      background: #bbb;
+    }
+
+    .mini-ball.hit-num { background: var(--green); }
+    .mini-ball.zz-num  { background: var(--gold); }
+
+    .partial-header {
+      font-size: 1rem;
+      font-weight: 700;
+      color: #856404;
+      margin: 1.25rem 0 0.75rem;
+      padding-top: 1rem;
+      border-top: 1px dashed var(--border);
+    }
+
+    .more-row td { text-align: center; color: var(--gray); font-style: italic; }
+
+    .cors-warning {
+      background: #fff3cd;
+      border: 1px solid #ffc107;
+      border-radius: 8px;
+      padding: 1rem;
+      font-size: 0.9rem;
+      margin-top: 0.75rem;
+    }
+
+    .cors-warning a { color: var(--red); }
+
+    .live-count {
+      font-size: 0.88rem;
+      color: var(--gray);
+      margin-bottom: 0.75rem;
+    }
+
+    .live-count strong { color: var(--dark); }
+
+    #live-body table thead th {
+      background: #495057;
+    }
+
+    @media (max-width: 480px) {
+      header h1 { font-size: 1.8rem; }
+      .number-grid { gap: 4px; }
+      .ball { font-size: 0.65rem; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>🎱 LottoSearch</h1>
+  <p>Prüfe ob deine Zahlen jemals in der österreichischen Lotterie gezogen wurden</p>
+</header>
+
+<main>
+
+  <!-- ── STATUS ── -->
+  <div class="card" style="padding:1rem 1.5rem;">
+    <div class="data-badge" id="data-badge">⏳ Lade…</div>
+  </div>
+
+  <!-- ── ZAHLEN WÄHLEN ── -->
+  <div class="card">
+    <h2>🎯 Zahlen wählen</h2>
+    <p style="color:var(--gray); font-size:0.9rem; margin-bottom:0.75rem;">
+      Wähle 6 Zahlen (1–45). Danach kannst du optional auch eine Zusatzzahl prüfen.
+    </p>
+
+    <div class="number-grid" id="number-grid"></div>
+
+    <div class="selection-row" id="selection-row">
+      <span class="sel-placeholder">Noch keine Zahlen gewählt</span>
+    </div>
+
+    <label class="zz-toggle-wrap" id="zz-toggle-wrap">
+      <input type="checkbox" id="zz-chk" onchange="onZzToggle()">
+      <span>Auch mit Zusatzzahl prüfen</span>
+    </label>
+    <div class="zz-hint" id="zz-hint">Wähle jetzt die Zusatzzahl aus dem Gitter oben (orange)</div>
+
+    <div class="btn-row">
+      <button class="btn btn-green" id="search-btn" onclick="doSearch()" disabled>🔍 Prüfen</button>
+      <button class="btn btn-gray" onclick="resetAll()">↺ Zurücksetzen</button>
+    </div>
+  </div>
+
+  <!-- ── LIVE-VORSCHAU ── -->
+  <div class="card" id="live-card" style="display:none">
+    <h2 id="live-heading">🔎 Live-Vorschau</h2>
+    <div id="live-body"></div>
+  </div>
+
+  <!-- ── ERGEBNIS (Prüfen) ── -->
+  <div class="card" id="results-card" style="display:none">
+    <h2>📊 Ergebnis</h2>
+    <div id="results-body"></div>
+  </div>
+
+</main>
+
+<script src="data/draws.js"></script>
+<script>
+// ── State ──────────────────────────────────────────────────────────────────
+// DRAWS from data/draws.js: [[day,month,year,n1,n2,n3,n4,n5,n6,zz], ...]
+const allDraws = DRAWS.map(d => ({
+  day: d[0], month: d[1], year: d[2],
+  numbers: [d[3],d[4],d[5],d[6],d[7],d[8]],
+  zusatz: d[9],
+  key: d.slice(3,9).join(',')
+}));
+
+let selected    = new Set();
+let zzNum       = null;
+let pickingZz   = false;
+let liveTimer   = null;
+
+function formatDisplayDate(d) {
+  return `${String(d.day).padStart(2,'0')}.${String(d.month).padStart(2,'0')}.${d.year}`;
+}
+
+// ── Grid UI ──────────────────────────────────────────────────────────────────
+
+function buildGrid() {
+  const grid = document.getElementById('number-grid');
+  for (let n = 1; n <= 45; n++) {
+    const btn = document.createElement('button');
+    btn.className = 'ball';
+    btn.textContent = n;
+    btn.id = `b${n}`;
+    btn.addEventListener('click', () => onBallClick(n));
+    grid.appendChild(btn);
+  }
+}
+
+function onBallClick(n) {
+  if (pickingZz) {
+    if (selected.has(n)) return;          // can't reuse main number
+    zzNum = (zzNum === n) ? null : n;
+  } else {
+    if (selected.has(n)) {
+      selected.delete(n);
+    } else if (selected.size < 6) {
+      selected.add(n);
+    }
+  }
+  updateUI();
+}
+
+function onZzToggle() {
+  const chk = document.getElementById('zz-chk').checked;
+  pickingZz = chk;
+  document.getElementById('zz-hint').style.display = chk ? 'block' : 'none';
+  if (!chk) zzNum = null;
+  updateUI();
+}
+
+function resetAll() {
+  selected.clear();
+  zzNum = null;
+  pickingZz = false;
+  clearTimeout(liveTimer);
+  document.getElementById('zz-chk').checked = false;
+  document.getElementById('zz-hint').style.display = 'none';
+  document.getElementById('live-card').style.display = 'none';
+  document.getElementById('results-card').style.display = 'none';
+  updateUI();
+}
+
+function updateUI() {
+  const sorted = [...selected].sort((a, b) => a - b);
+  const full = sorted.length === 6;
+
+  // Update ball states
+  for (let n = 1; n <= 45; n++) {
+    const el = document.getElementById(`b${n}`);
+    el.className = 'ball';
+    if (selected.has(n) && !pickingZz) {
+      el.classList.add('selected');
+    } else if (n === zzNum) {
+      el.classList.add('zusatz-sel');
+    } else if (!pickingZz && !selected.has(n) && full) {
+      el.classList.add('disabled');
+    } else if (pickingZz && selected.has(n)) {
+      el.classList.add('disabled');
+    }
+  }
+
+  // Selection row
+  const row = document.getElementById('selection-row');
+  if (sorted.length === 0 && zzNum === null) {
+    row.innerHTML = '<span class="sel-placeholder">Noch keine Zahlen gewählt</span>';
+  } else {
+    row.innerHTML =
+      sorted.map(n => `<div class="sel-ball main">${n}</div>`).join('') +
+      (zzNum !== null
+        ? `<span class="zz-sep">ZZ:</span><div class="sel-ball zz">${zzNum}</div>`
+        : '');
+  }
+
+  // ZZ toggle visibility
+  const zzWrap = document.getElementById('zz-toggle-wrap');
+  zzWrap.style.display = full ? 'flex' : 'none';
+  if (!full) {
+    document.getElementById('zz-chk').checked = false;
+    pickingZz = false;
+    zzNum = null;
+    document.getElementById('zz-hint').style.display = 'none';
+  }
+
+  // Search button
+  const canSearch = full && (!pickingZz || zzNum !== null);
+  document.getElementById('search-btn').disabled = !canSearch;
+
+  // Live search debounce
+  clearTimeout(liveTimer);
+  if (sorted.length >= 3) {
+    liveTimer = setTimeout(() => runLiveSearch(sorted), 200);
+  } else {
+    document.getElementById('live-card').style.display = 'none';
+  }
+}
+
+// ── Live Search ───────────────────────────────────────────────────────────────
+
+function runLiveSearch(sorted) {
+  const card  = document.getElementById('live-card');
+  const body  = document.getElementById('live-body');
+  const heading = document.getElementById('live-heading');
+
+  // Find all draws that contain every selected number
+  const hits = allDraws.filter(d =>
+    sorted.every(n => d.numbers.includes(n))
+  ).reverse(); // newest first
+
+  const cnt  = sorted.length;
+  const label = cnt === 6 ? 'exakte Kombination' : `alle ${cnt} gewählten Zahlen`;
+
+  heading.textContent = `🔎 Ziehungen mit ${label}`;
+
+  if (hits.length === 0) {
+    body.innerHTML = `<p class="live-count">Keine Ziehung enthält <strong>${label}</strong>.</p>`;
+  } else {
+    const shown = hits.slice(0, 50);
+    body.innerHTML = `
+      <p class="live-count"><strong>${hits.length}</strong> Ziehung${hits.length !== 1 ? 'en' : ''} gefunden
+        ${hits.length > 50 ? '(neueste 50 angezeigt)' : ''}</p>
+      <table>
+        <thead><tr><th>Datum</th><th>Gezogene Zahlen</th></tr></thead>
+        <tbody>
+          ${shown.map(d => `
+            <tr>
+              <td style="white-space:nowrap">${formatDisplayDate(d)}</td>
+              <td>${d.numbers.map(n =>
+                `<span class="mini-ball ${sorted.includes(n) ? 'hit-num' : ''}">${n}</span>`
+              ).join('')}<span class="mini-ball zz-num" title="Zusatzzahl">${d.zusatz}</span></td>
+            </tr>`).join('')}
+        </tbody>
+      </table>`;
+  }
+
+  card.style.display = 'block';
+}
+
+// ── Search ────────────────────────────────────────────────────────────────────
+
+function doSearch() {
+  const sorted = [...selected].sort((a, b) => a - b);
+  const key = sorted.join(',');
+  const useZz = document.getElementById('zz-chk').checked && zzNum !== null;
+
+  let matches = allDraws.filter(d => d.key === key);
+  if (useZz) matches = matches.filter(d => d.zusatz === zzNum);
+
+  const partials = useZz ? [] : allDraws.filter(d => {
+    if (d.key === key) return false;
+    return sorted.filter(n => d.numbers.includes(n)).length === 5;
+  });
+
+  renderResults(sorted, matches, partials, useZz);
+}
+
+// ── Results ───────────────────────────────────────────────────────────────────
+
+function miniball(n, cls = '') {
+  return `<span class="mini-ball ${cls}">${n}</span>`;
+}
+
+function drawBalls(draw, highlight) {
+  const nums = [...draw.numbers].sort((a, b) => a - b);
+  return nums.map(n => miniball(n, highlight.includes(n) ? 'hit-num' : '')).join('') +
+    miniball(draw.zusatz, 'zz-num');
+}
+
+function renderResults(sorted, matches, partials, useZz) {
+  const card = document.getElementById('results-card');
+  const body = document.getElementById('results-body');
+  card.style.display = 'block';
+
+  let html = '';
+
+  // Main banner
+  if (matches.length > 0) {
+    html += `
+      <div class="result-banner hit">
+        <span class="emoji">🎉</span>
+        <strong>Diese Zahlen wurden ${matches.length}× gezogen!</strong>
+      </div>
+      <table>
+        <thead><tr>
+          <th>Datum</th>
+          <th>Zahlen &amp; Zusatzzahl</th>
+        </tr></thead>
+        <tbody>
+          ${matches.map(d => `
+            <tr>
+              <td style="white-space:nowrap">${formatDisplayDate(d)}</td>
+              <td>${drawBalls(d, sorted)}</td>
+            </tr>`).join('')}
+        </tbody>
+      </table>`;
+  } else {
+    html += `
+      <div class="result-banner miss">
+        <span class="emoji">🍀</span>
+        <strong>Diese Kombination wurde noch nie gezogen!</strong>
+        ${useZz ? '<br><small style="color:#856404">Auch mit der gewählten Zusatzzahl kein Treffer.</small>' : ''}
+      </div>`;
+  }
+
+  // Partial matches (5 of 6)
+  if (!useZz && partials.length > 0) {
+    const shown = partials.slice(0, 25);
+    html += `
+      <p class="partial-header">5 von 6 Zahlen: ${partials.length}× gezogen</p>
+      <table>
+        <thead><tr>
+          <th>Datum</th>
+          <th>Gezogene Zahlen (grün = Treffer, orange = Zusatzzahl)</th>
+        </tr></thead>
+        <tbody>
+          ${shown.map(d => `
+            <tr>
+              <td style="white-space:nowrap">${formatDisplayDate(d)}</td>
+              <td>${drawBalls(d, sorted)}</td>
+            </tr>`).join('')}
+          ${partials.length > 25 ? `<tr class="more-row"><td colspan="2">… und ${partials.length - 25} weitere</td></tr>` : ''}
+        </tbody>
+      </table>`;
+  }
+
+  body.innerHTML = html;
+  card.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+const lastDraw = allDraws[allDraws.length - 1];
+document.getElementById('data-badge').textContent =
+  `✓ ${allDraws.length} Ziehungen geladen (${allDraws[0].year}–${lastDraw.year}, zuletzt ${formatDisplayDate(lastDraw)})`;
+buildGrid();
+updateUI();
+</script>
+</body>
+</html>
